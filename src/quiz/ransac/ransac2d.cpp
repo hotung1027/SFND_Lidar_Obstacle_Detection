@@ -56,8 +56,8 @@ pcl::visualization::PCLVisualizer::Ptr initScene() {
   return viewer;
 }
 
-std::unordered_set<int> Ransac(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud,
-                               int maxIterations, float distanceTol) {
+std::unordered_set<int> RansacLine(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud,
+                                   int maxIterations, float distanceTol) {
   std::unordered_set<int> inliersResult;
   srand(time(NULL));
 
@@ -118,6 +118,68 @@ std::unordered_set<int> Ransac(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud,
   return inliersResult;
 }
 
+std::unordered_set<int> RansacPlane(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud,
+                                    int maxIterations, float distanceTol) {
+  std::unordered_set<int> inliersResult;
+  srand(time(NULL));
+
+  // TODO: Fill in this function
+  int cloudSize = cloud->points.size();
+  pcl::PointXYZ point1;
+  pcl::PointXYZ point2;
+  pcl::PointXYZ point3;
+
+  float minLoss = 99999.0;
+  float a, b, c, d;
+  // For max iterations
+  //
+  while (maxIterations--) {
+    // iterating over all the points in the cloud
+    // Randomly sample subset and fit line
+    // minimal subset  size is 2
+    int index1 = std::rand() % cloudSize;
+    int index2 = std::rand() % cloudSize;
+    while (index2 == index1) {
+      index2 = std::rand() % cloudSize;
+    }
+    point1 = cloud->points[index1];
+    point2 = cloud->points[index2];
+    // Calculate the loss
+    // ax + by = c
+    // y = mx + c
+    // m = (y2-y1)/(x2-x1)
+    // c = y1 - (y2-y1)(x2-x1) (x1)
+    a = point1.y - point2.y;
+    b = point2.x - point1.x;
+    d = point1.x * point2.y - point2.x - point1.y;
+
+    // Measure distance between every point and fitted line
+    // If distance is smaller than threshold count it as inlier
+    //
+    std::unordered_set<int> inliers;
+    float loss = 0.0;
+    for (int index = 0; index < cloudSize; index++) {
+      if (inliers.count(index) > 0)
+        continue;
+      pcl::PointXYZ point = cloud->points[index];
+      float x3 = point.x;
+      float y3 = point.y;
+      float distance = fabs(a * x3 + b * y3 + d) / std::sqrt(a * a + b * b);
+      loss += distance;
+      if (distance < distanceTol) {
+        inliers.insert(index);
+      }
+    }
+    if (loss < minLoss) {
+      minLoss = loss;
+      inliersResult = inliers;
+    }
+  }
+
+  // Return indicies of inliers from fitted line with most inliers
+
+  return inliersResult;
+}
 int main() {
 
   // Create viewer
