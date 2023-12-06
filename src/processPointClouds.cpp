@@ -1,7 +1,10 @@
 // PCL lib Functions for processing point clouds
 
 #include "processPointClouds.h"
+#include <chrono>
+#include <unordered_set>
 #include <utility>
+#include <vector>
 
 // constructor:
 template <typename PointT> ProcessPointClouds<PointT>::ProcessPointClouds() {}
@@ -103,20 +106,140 @@ ProcessPointClouds<PointT>::SegmentPlane(
 }
 
 template <typename PointT>
+std::pair<typename pcl::PointCloud<PointT>::Ptr,
+          typename pcl::PointCloud<PointT>::Ptr>
+ProcessPointClouds<PointT>::Segment(typename pcl::PointCloud<PointT>::Ptr cloud,
+                                    int maxIterations,
+                                    float distanceThreshold) {
+  auto startTime = std::chrono::high_resolution_clock::now();
+  std::unordered_set<int> inliersResult;
+  srand(time(NULL));
+
+  // TODO: Fill in this function
+  int cloudSize = cloud->points.size();
+  pcl::PointXYZ point1;
+  pcl::PointXYZ point2;
+  pcl::PointXYZ point3;
+
+  float minLoss = std::numeric_limits<float>::infinity();
+  float a, b, c, d;
+  // For max iterations
+  //
+  while (maxIterations--) {
+    // iterating over all the points in the cloud
+    // Randomly sample subset and fit line
+    // minimal subset  size is 2
+    std::unordered_set<int> inliers;
+
+    while (inliers.size() < 3) {
+
+      inliers.insert(std::rand() % cloudSize);
+    }
+    auto iter = inliers.begin();
+
+    point1 = cloud->points[*iter];
+    iter++;
+    point2 = cloud->points[*iter];
+    iter++;
+    point3 = cloud->points[*iter];
+    // Calculate the loss
+    // Ax + By + Cz + D = 0
+    // calculate the plane normal vector
+    // n = v1 x v2
+    //
+    // m = (y2-y1)/(x2-x1)
+    // c = y1 - (y2-y1)(x2-x1) (x1)
+
+    // Measure distance between every point and fitted line
+    // If distance is smaller than threshold count it as inlier
+    //
+    pcl::PointXYZ v1, v2, plane;
+    // Calculate the normal vector of the plane
+    v1.getVector3fMap() = point2.getVector3fMap() - point1.getVector3fMap();
+    v2.getVector3fMap() = point3.getVector3fMap() - point1.getVector3fMap();
+    plane.getVector3fMap() = v1.getVector3fMap().cross(v2.getVector3fMap());
+    // save the normal vector tov ariale
+    a = plane.x;
+    b = plane.y;
+    c = plane.z;
+    d = -(a * point1.x + b * point1.y + c * point1.z);
+
+    float loss = 0.0;
+    for (int index = 0; index < cloudSize; index++) {
+      if (inliers.count(index) > 0)
+        continue;
+      pcl::PointXYZ point = cloud->points[index];
+      float distance = fabs(a * point.x + b * point.y + c * point.z + d) /
+                       std::sqrt(a * a + b * b + c * c);
+      loss += distance;
+      if (distance < distanceThreshold) {
+        inliers.insert(index);
+      }
+    }
+    if (loss < minLoss) {
+      minLoss = loss;
+      inliersResult = inliers;
+    }
+  }
+
+  auto endTime = std::chrono::high_resolution_clock::now();
+  auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(
+      endTime - startTime);
+  std::cout << "RansacPlane Time: " << elapsedTime.count() << " ms"
+            << std::endl;
+
+  // Return indicies of inliers from fitted line with most inliers
+
+  return inliersResult;
+}
+
+template <typename PointT>
 std::vector<typename pcl::PointCloud<PointT>::Ptr>
 ProcessPointClouds<PointT>::Clustering(
     typename pcl::PointCloud<PointT>::Ptr cloud, float clusterTolerance,
     int minSize, int maxSize) {
 
   // Time clustering process
-  auto startTime = std::chrono::steady_clock::now();
+  auto startTime = std::chrono::high_resolution_clock::now();
 
   std::vector<typename pcl::PointCloud<PointT>::Ptr> clusters;
 
   // TODO:: Fill in the function to perform euclidean clustering to group
   // detected obstacles
 
-  auto endTime = std::chrono::steady_clock::now();
+  // create Kd-Tree representation of the point cloud
+  typename pcl::search::KdTree<PointT>::Ptr tree(
+      new pcl::search::KdTree<PointT>);
+  tree->setInputCloud(cloud);
+
+  // start Segmentation
+  std::vector<pcl::PointIndices> cluster_indices;
+  pcl::EuclideanClusterExtraction<PointT> ec;
+  ec.setClusterTolerance(clusterTolerance);
+  ec.setMinClusterSize(minSize);
+  ec.setMaxClusterSize(maxSize);
+  ec.setSearchMethod(tree);
+  ec.setInputCloud(cloud);
+  ec.extract(cluster_indices);
+
+  // push back clusters to clusters vector
+  int j = 0;
+  for (const auto &cluster : cluster_indices) {
+    typename pcl::PointCloud<PointT>::Ptr cloud_cluster(
+        new pcl::PointCloud<PointT>());
+    for (const auto &idx : cluster.indices) {
+      cloud_cluster->push_back((*cloud)[idx]);
+    }
+    cloud_cluster->width = cloud_cluster->size();
+    cloud_cluster->height = 1;
+    cloud_cluster->is_dense = true;
+
+    clusters.push_back(cloud_cluster);
+    std::cout << "Point Cloud representing the Cluster: "
+              << cloud_cluster->size() << " data points." << std::endl;
+  }
+
+  auto endTime = std::chrono::high_resolution_clock::now();
   auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(
       endTime - startTime);
   std::cout << "clustering took " << elapsedTime.count()

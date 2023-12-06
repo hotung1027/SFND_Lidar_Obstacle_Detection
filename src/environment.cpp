@@ -7,6 +7,7 @@
 #include "sensors/lidar.h"
 // using templates for processPointClouds so also include .cpp to help linker
 #include "processPointClouds.cpp"
+#include <vector>
 
 std::vector<Car> initHighway(bool renderScene,
                              pcl::visualization::PCLVisualizer::Ptr &viewer) {
@@ -39,21 +40,36 @@ void simpleHighway(pcl::visualization::PCLVisualizer::Ptr &viewer) {
   // ----------------------------------------------------
 
   // RENDER OPTIONS
-  bool renderScene = true;
+  bool renderScene = false;
   std::vector<Car> cars = initHighway(renderScene, viewer);
 
   // TODO:: Create lidar sensor
   Lidar *lidar = new Lidar(cars, 0);
+
   // TODO:: Create point processor
   pcl::PointCloud<pcl::PointXYZ>::Ptr inputCloud = lidar->scan();
   // renderRays(viewer,lidar->position,inputCloud);
-  renderPointCloud(viewer, inputCloud, "CarPoint");
+  // renderPointCloud(viewer, inputCloud, "CarPoint");
   ProcessPointClouds<pcl::PointXYZ> pointProcesssor;
   std::pair<pcl::PointCloud<pcl::PointXYZ>::Ptr,
             pcl::PointCloud<pcl::PointXYZ>::Ptr>
       segmentedClouds = pointProcesssor.SegmentPlane(inputCloud, 10, 0.2);
-  renderPointCloud(viewer, segmentedClouds.first, "obstacles Cloud",
-                   Color(1, 0, 0));
+
+  std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> cloudClusters =
+      pointProcesssor.Clustering(segmentedClouds.first, 1.0, 5, 200);
+  int clusterId = 0;
+  std::vector<Color> colors = {Color(1, 0, 0), Color(1, 0, 1), Color(0, 0, 1)};
+
+  for (pcl::PointCloud<pcl::PointXYZ>::Ptr cluster : cloudClusters) {
+    std::cout << "cluster size";
+    pointProcesssor.numPoints(cluster);
+    renderPointCloud(viewer, cluster,
+                     "obstacle Cloud" + std::to_string(clusterId),
+                     colors[clusterId % 3]);
+    clusterId++;
+  }
+  // renderPointCloud(viewer, segmentedClouds.first, "obstacles Cloud",
+  //                  Color(1, 0, 0));
   renderPointCloud(viewer, segmentedClouds.second, "Segmented Plane Cloud",
                    Color(0, 1, 0));
 }
