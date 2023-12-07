@@ -6,6 +6,8 @@
 #include "kdtree.h"
 #include <chrono>
 #include <string>
+#include <unordered_set>
+#include <vector>
 
 // Arguments:
 // window is the region to draw box around
@@ -70,15 +72,45 @@ void render2DTree(Node *node, pcl::visualization::PCLVisualizer::Ptr &viewer,
     render2DTree(node->right, viewer, upperWindow, iteration, depth + 1);
   }
 }
+//  group cluster with nearest neighbours within distance tolerance
+//  @param cluster reference to the cluster, modified inplace
+void groupNearestNeighbour(const std::vector<std::vector<float>> points, int id,
+                           std::vector<int> &cluster, KdTree *tree,
+                           std::unordered_set<int> &processedPoints,
+                           float distanceTol) {
+  // mark point as processed
+  processedPoints.insert(id);
+  cluster.push_back(id);
+
+  // find nearest neighbours within distance tolerance
+  std::vector<int> neighbours;
+  neighbours = tree->search(points[id], distanceTol);
+  for (int idx : neighbours) {
+    if (!processedPoints.contains(idx)) {
+      groupNearestNeighbour(points, idx, cluster, tree, processedPoints,
+                            distanceTol);
+    }
+  }
+}
 
 std::vector<std::vector<int>>
 euclideanCluster(const std::vector<std::vector<float>> &points, KdTree *tree,
                  float distanceTol) {
-
   // TODO: Fill out this function to return list of indices for each cluster
-
   std::vector<std::vector<int>> clusters;
+  std::unordered_set<int> processedPoints = {};
 
+  for (int i = 0; i < points.size(); i++) {
+    // Check if point has already been processed
+    if (!processedPoints.contains(i)) {
+      // create new cluster and start group with new point
+      std::vector<int> cluster;
+      groupNearestNeighbour(points, i, cluster, tree, processedPoints,
+                            distanceTol);
+
+      clusters.push_back(cluster);
+    }
+  }
   return clusters;
 }
 
