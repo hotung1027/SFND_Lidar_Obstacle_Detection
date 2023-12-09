@@ -1,11 +1,11 @@
 // PCL lib Functions for processing point clouds
 
 #include "processPointClouds.h"
+#include <Eigen/Eigenvalues>
 #include <chrono>
 #include <unordered_set>
 #include <utility>
 #include <vector>
-
 // constructor:
 template <typename PointT> ProcessPointClouds<PointT>::ProcessPointClouds() {}
 
@@ -264,6 +264,28 @@ Box ProcessPointClouds<PointT>::BoundingBox(
   box.x_max = maxPoint.x;
   box.y_max = maxPoint.y;
   box.z_max = maxPoint.z;
+
+  return box;
+}
+
+template <typename PointT>
+BoxQ ProcessPointClouds<PointT>::BoundingBoxQ(
+    typename pcl::PointCloud<PointT>::Ptr cluster) {
+
+  // Find bounding box for one of the clusters
+  PointT minPoint, maxPoint;
+
+  Eigen::Vector4f pcaCentroid;
+
+  pcl::compute3DCentroid(*cluster, pcaCentroid);
+
+  Eigen::Matrix3f covariance;
+  pcl::computeCovarianceMatrixNormalized(*cluster, pcaCentroid, covariance);
+  Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> eigen_solver(covariance);
+  Eigen::Matrix3f eigenvectorsPCA = eigen_solver.eigenvectors();
+  pcl::getMinMax3D(*cluster, minPoint, maxPoint);
+
+  BoxQ box;
 
   return box;
 }
