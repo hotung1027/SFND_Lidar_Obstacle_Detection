@@ -86,7 +86,7 @@ void groupNearestNeighbour(const std::vector<std::vector<float>> points, int id,
   std::vector<int> neighbours;
   neighbours = tree->search(points[id], distanceTol);
   for (int idx : neighbours) {
-    if (!processedPoints.contains(idx)) {
+    if (processedPoints.count(idx) == 0) {
       groupNearestNeighbour(points, idx, cluster, tree, processedPoints,
                             distanceTol);
     }
@@ -102,7 +102,7 @@ euclideanCluster(const std::vector<std::vector<float>> &points, KdTree *tree,
 
   for (int i = 0; i < points.size(); i++) {
     // Check if point has already been processed
-    if (!processedPoints.contains(i)) {
+    if (processedPoints.count(i) == 0) {
       // create new cluster and start group with new point
       std::vector<int> cluster;
       groupNearestNeighbour(points, i, cluster, tree, processedPoints,

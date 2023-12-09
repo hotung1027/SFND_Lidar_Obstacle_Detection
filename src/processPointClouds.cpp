@@ -3,6 +3,7 @@
 #include "processPointClouds.h"
 #include <Eigen/Eigenvalues>
 #include <chrono>
+#include <eigen3/Eigen/src/Geometry/Quaternion.h>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -281,12 +282,42 @@ BoxQ ProcessPointClouds<PointT>::BoundingBoxQ(
 
   Eigen::Matrix3f covariance;
   pcl::computeCovarianceMatrixNormalized(*cluster, pcaCentroid, covariance);
-  Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> eigen_solver(covariance);
+  Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> eigen_solver(
+      covariance, Eigen::ComputeEigenvectors);
   Eigen::Matrix3f eigenvectorsPCA = eigen_solver.eigenvectors();
-  pcl::getMinMax3D(*cluster, minPoint, maxPoint);
+  // eigenvectorsPCA(0, 2) = 0;
+  // eigenvectorsPCA(1, 2) = 0;
+  eigenvectorsPCA.col(2) = eigenvectorsPCA.col(0).cross(eigenvectorsPCA.col(1));
+  // eigenvectorsPCA.col(2) = 0 * eigenvectorsPCA.col(2);
+  // eigenvectorsPCA(2, 2) = 1;
+
+  Eigen::Matrix4f projectionTransform(Eigen::Matrix4f::Identity());
+  projectionTransform.block<3, 3>(0, 0) = eigenvectorsPCA.transpose();
+  projectionTransform.block<3, 1>(0, 3) =
+      -1.f * (projectionTransform.block<3, 3>(0, 0) * pcaCentroid.head<3>());
+  pcl::PointCloud<pcl::PointXYZ>::Ptr projectedPointCloud(
+      new pcl::PointCloud<pcl::PointXYZ>);
+  pcl::transformPointCloud(*cluster, *projectedPointCloud, projectionTransform);
+
+  pcl::getMinMax3D(*projectedPointCloud, minPoint, maxPoint);
+
+  const Eigen::Vector3f meanDiagonal =
+      0.5f * (maxPoint.getVector3fMap() + minPoint.getVector3fMap());
+  Eigen::Quaternionf bboxQuaternion(eigenvectorsPCA);
+  const Eigen::Vector3f bboxTransform =
+      eigenvectorsPCA * meanDiagonal + pcaCentroid.head<3>();
 
   BoxQ box;
-
+  std::cout << bboxQuaternion.vec() << std::endl;
+  // bboxQuaternion.x() = 0;
+  // bboxQuaternion.y() = 0;
+  bboxQuaternion.z() = 0;
+  bboxQuaternion.w() = 1;
+  box.bboxQuaternion = bboxQuaternion;
+  box.bboxTransform = bboxTransform;
+  box.cube_length = maxPoint.x - minPoint.x;
+  box.cube_width = maxPoint.y - minPoint.y;
+  box.cube_height = maxPoint.z - minPoint.z;
   return box;
 }
 
