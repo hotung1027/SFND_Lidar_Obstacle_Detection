@@ -4,6 +4,7 @@
 #include <Eigen/Eigenvalues>
 #include <chrono>
 #include <eigen3/Eigen/src/Geometry/Quaternion.h>
+#include <math.h>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -282,12 +283,18 @@ BoxQ ProcessPointClouds<PointT>::BoundingBoxQ(
 
   Eigen::Matrix3f covariance;
   pcl::computeCovarianceMatrixNormalized(*cluster, pcaCentroid, covariance);
+
+  covariance.block<2, 2>(0, 2) = 0 * covariance.block<2, 2>(0, 2);
+  covariance.block<2, 2>(2, 0) = 0 * covariance.block<2, 2>(2, 0);
+
+  // covariance(2, 2) = 1;
   Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> eigen_solver(
       covariance, Eigen::ComputeEigenvectors);
   Eigen::Matrix3f eigenvectorsPCA = eigen_solver.eigenvectors();
+  eigenvectorsPCA.col(2) = eigenvectorsPCA.col(0).cross(eigenvectorsPCA.col(1));
   // eigenvectorsPCA(0, 2) = 0;
   // eigenvectorsPCA(1, 2) = 0;
-  eigenvectorsPCA.col(2) = eigenvectorsPCA.col(0).cross(eigenvectorsPCA.col(1));
+  // eigenvectorsPCA.row(2) = 0 * eigenvectorsPCA.row(2);
   // eigenvectorsPCA.col(2) = 0 * eigenvectorsPCA.col(2);
   // eigenvectorsPCA(2, 2) = 1;
 
@@ -303,21 +310,27 @@ BoxQ ProcessPointClouds<PointT>::BoundingBoxQ(
 
   const Eigen::Vector3f meanDiagonal =
       0.5f * (maxPoint.getVector3fMap() + minPoint.getVector3fMap());
+  // eigenvectorsPCA.row(2) = eigenvectorsPCA.row(2) * 0;
+  // eigenvectorsPCA.col(2) = eigenvectorsPCA.col(2) * 0;
   Eigen::Quaternionf bboxQuaternion(eigenvectorsPCA);
   const Eigen::Vector3f bboxTransform =
       eigenvectorsPCA * meanDiagonal + pcaCentroid.head<3>();
 
   BoxQ box;
-  std::cout << bboxQuaternion.vec() << std::endl;
+  // std::cout << bboxQuaternion.vec() << std::endl;
   // bboxQuaternion.x() = 0;
   // bboxQuaternion.y() = 0;
-  bboxQuaternion.z() = 0;
-  bboxQuaternion.w() = 1;
+  // bboxQuaternion.z() = 0;
+  // bboxQuaternion.w() = 1;
+
+  // bboxQuaternion.z() = sin(acos(bboxQuaternion.w()));
   box.bboxQuaternion = bboxQuaternion;
   box.bboxTransform = bboxTransform;
-  box.cube_length = maxPoint.x - minPoint.x;
-  box.cube_width = maxPoint.y - minPoint.y;
+
+  box.cube_width = maxPoint.x - minPoint.x;
+  box.cube_length = maxPoint.y - minPoint.y;
   box.cube_height = maxPoint.z - minPoint.z;
+
   return box;
 }
 
