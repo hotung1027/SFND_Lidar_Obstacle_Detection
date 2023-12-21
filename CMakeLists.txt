@@ -11,6 +11,7 @@ set(PCL_DIR /usr/lib/x86_64-linux-gnu/cmake/pcl)
 # link_directories(/usr/local/lib/x86_64-linux-gnu)
 # link_directories(/usr/local/lib)
 
+>>>>>>> Stashed changes
 project(playback)
 
 find_package(PCL 1.2...<1.12 REQUIRED)
@@ -35,5 +36,6 @@ target_link_libraries (environment ${PCL_LIBRARIES})
 #
 # add_executable (quizCluster src/quiz/cluster/cluster.cpp src/render/render.cpp)
 # target_link_libraries (quizCluster ${PCL_LIBRARIES})
+<<<<<<< Updated upstream
 
 

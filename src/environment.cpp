@@ -39,26 +39,32 @@ void cityBlock(pcl::visualization::PCLVisualizer::Ptr &viewer) {
   // ----------------------------------------------------
 
   // RENDER OPTIONS
-  bool renderScene = false;
+  bool render_scene = false;
   bool render_clusters = true;
+  bool render_filter = true;
   bool render_box = true;
   bool render_obs = false;
   bool render_plane = true;
 
-  // TODO:: Create lidar sensor
+  // TODO:: Load PCD data files
 
-  // TODO:: Create point processor
   ProcessPointClouds<pcl::PointXYZI> *pointProcesssor =
       new ProcessPointClouds<pcl::PointXYZI>();
   pcl::PointCloud<pcl::PointXYZI>::Ptr inputCloud =
       pointProcesssor->loadPcd("../src/sensors/data/pcd/data_1/0000000000.pcd");
-  renderPointCloud(viewer, inputCloud, "inputCloud");
+  // TODO:: Create point processor
+  if (render_scene) {
 
-  pcl::PointCloud<pcl::PointXYZI>::Ptr filterCloud =
-      pointProcesssor->FilterCloud(inputCloud, 0.5f,
-                                   Eigen::Vector4f(-1, 5, -1, 5, -1, 1),
-                                   Eigen::Vector4f(-1, -1, -1, 1));
-  renderPointCloud(viewer, filterCloud, "filterCloud");
+    renderPointCloud(viewer, inputCloud, "inputCloud");
+  }
+
+  if (render_filter) {
+    pcl::PointCloud<pcl::PointXYZI>::Ptr filterCloud =
+        pointProcesssor->FilterCloud(inputCloud, 0.5f,
+                                     Eigen::Vector4f(-2000, -2000, -40, 1),
+                                     Eigen::Vector4f(2000, 2000, 40, 1));
+    renderPointCloud(viewer, filterCloud, "filterCloud");
+  }
   // std::pair<pcl::PointCloud<pcl::PointXYZ>::Ptr,
   //           pcl::PointCloud<pcl::PointXYZ>::Ptr>
   //     segmentedClouds = pointProcesssor.SegmentPlane(inputCloud, 10, 0.2);

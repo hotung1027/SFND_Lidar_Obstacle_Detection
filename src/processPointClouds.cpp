@@ -4,15 +4,12 @@
 #include <Eigen/Eigenvalues>
 #include <chrono>
 #include <eigen3/Eigen/src/Geometry/Quaternion.h>
-<<<<<<< Updated upstream
 #include <math.h>
-=======
 #include <pcl/PointIndices.h>
 #include <pcl/features/statistical_multiscale_interest_region_extraction.h>
 #include <pcl/filters/crop_box.h>
 #include <pcl/filters/extract_indices.h>
 #include <pcl/point_cloud.h>
->>>>>>> Stashed changes
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -53,13 +50,15 @@ typename pcl::PointCloud<PointT>::Ptr ProcessPointClouds<PointT>::FilterCloud(
       new pcl::PointCloud<PointT>);
   cbox.setMin(minPoint);
   cbox.setMax(maxPoint);
-  cbox.setInputCloud(cloud);
+  cbox.setInputCloud(cloud_filtered);
   cbox.filter(*cloudRegion);
-  std::vector<int> indices;
+
+  // Crop the roof of the car
+  std::vector<int> indices; // roof indice being remove
 
   pcl::CropBox<PointT> roof(true);
   roof.setMin(Eigen::Vector4f(-1.5, -1.7, -1, 1));
-  roof.setMax(Eigen::Vector4f(2.6, 1.7, -4, 1));
+  roof.setMax(Eigen::Vector4f(2.6, 1.7, 4, 1));
   roof.setInputCloud(cloudRegion);
   roof.filter(indices);
 
@@ -80,7 +79,7 @@ typename pcl::PointCloud<PointT>::Ptr ProcessPointClouds<PointT>::FilterCloud(
   std::cout << "filtering took " << elapsedTime.count() << " milliseconds"
             << std::endl;
 
-  return cloud_filtered;
+  return cloudRegion;
 }
 
 template <typename PointT>
