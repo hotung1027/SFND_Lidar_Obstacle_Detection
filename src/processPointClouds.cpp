@@ -10,6 +10,7 @@
 #include <pcl/filters/crop_box.h>
 #include <pcl/filters/extract_indices.h>
 #include <pcl/point_cloud.h>
+#include <pcl/point_types_conversion.h>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -334,18 +335,13 @@ BoxQ ProcessPointClouds<PointT>::BoundingBoxQ(
       covariance, Eigen::ComputeEigenvectors);
   Eigen::Matrix3f eigenvectorsPCA = eigen_solver.eigenvectors();
   eigenvectorsPCA.col(2) = eigenvectorsPCA.col(0).cross(eigenvectorsPCA.col(1));
-  // eigenvectorsPCA(0, 2) = 0;
-  // eigenvectorsPCA(1, 2) = 0;
-  // eigenvectorsPCA.row(2) = 0 * eigenvectorsPCA.row(2);
-  // eigenvectorsPCA.col(2) = 0 * eigenvectorsPCA.col(2);
-  // eigenvectorsPCA(2, 2) = 1;
 
   Eigen::Matrix4f projectionTransform(Eigen::Matrix4f::Identity());
   projectionTransform.block<3, 3>(0, 0) = eigenvectorsPCA.transpose();
   projectionTransform.block<3, 1>(0, 3) =
       -1.f * (projectionTransform.block<3, 3>(0, 0) * pcaCentroid.head<3>());
-  pcl::PointCloud<pcl::PointXYZ>::Ptr projectedPointCloud(
-      new pcl::PointCloud<pcl::PointXYZ>);
+  typename pcl::PointCloud<PointT>::Ptr projectedPointCloud(
+      new pcl::PointCloud<PointT>);
   pcl::transformPointCloud(*cluster, *projectedPointCloud, projectionTransform);
 
   pcl::getMinMax3D(*projectedPointCloud, minPoint, maxPoint);
