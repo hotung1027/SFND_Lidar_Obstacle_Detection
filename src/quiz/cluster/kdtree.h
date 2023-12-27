@@ -41,11 +41,10 @@ struct KdTree {
       }
     }
   }
-  void insert(std::vector<float> point, int id) {
+  void insert(std::vector<float> point, int id, int maxAxis) {
     // TODO: Fill in this function to insert a new point into the tree
     // the function should create a new node and place correctly with in the
     // root
-    int maxAxis = 2;
     int depth = 0;
     int direction;
     insertHelper(*&root, depth, point, id, maxAxis);
@@ -92,8 +91,10 @@ struct KdTree {
     bool withinBounds = collideBox(target, node->point, distanceTol, maxAxis);
 
     if (withinBounds) {
-      float dx = node->point.at(0) - target.at(0);
-      float dy = node->point.at(1) - target.at(1);
+      // float dx = node->point.at(0) - target.at(0);
+      // float dy = node->point.at(1) - target.at(1);
+      // float dz = node->point.at(2) - target.at(2);
+
       if (euclideanDistance(target, node->point, maxAxis) < distanceTol) {
         points.push_back(node->id);
       }
@@ -108,10 +109,10 @@ struct KdTree {
     }
   }
   // return a list of point ids in the tree that are within distance of target
-  std::vector<int> search(std::vector<float> target, float distanceTol) {
+  std::vector<int> search(std::vector<float> target, float distanceTol,
+                          int maxAxis) {
     std::vector<int> ids;
     uint depth = 0;
-    int maxAxis = 2;
     searchHelper(*&root, target, ids, distanceTol, depth, maxAxis);
     return ids;
   }

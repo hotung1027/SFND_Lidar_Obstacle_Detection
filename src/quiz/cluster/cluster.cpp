@@ -77,25 +77,25 @@ void render2DTree(Node *node, pcl::visualization::PCLVisualizer::Ptr &viewer,
 void groupNearestNeighbour(const std::vector<std::vector<float>> points, int id,
                            std::vector<int> &cluster, KdTree *tree,
                            std::unordered_set<int> &processedPoints,
-                           float distanceTol) {
+                           float distanceTol, int maxAxis) {
   // mark point as processed
   processedPoints.insert(id);
   cluster.push_back(id);
 
   // find nearest neighbours within distance tolerance
   std::vector<int> neighbours;
-  neighbours = tree->search(points[id], distanceTol);
+  neighbours = tree->search(points[id], distanceTol, maxAxis);
   for (int idx : neighbours) {
     if (processedPoints.count(idx) == 0) {
       groupNearestNeighbour(points, idx, cluster, tree, processedPoints,
-                            distanceTol);
+                            distanceTol, maxAxis);
     }
   }
 }
 
 std::vector<std::vector<int>>
 euclideanCluster(const std::vector<std::vector<float>> &points, KdTree *tree,
-                 float distanceTol) {
+                 float distanceTol, int maxAxis) {
   // TODO: Fill out this function to return list of indices for each cluster
   std::vector<std::vector<int>> clusters;
   std::unordered_set<int> processedPoints = {};
@@ -106,7 +106,7 @@ euclideanCluster(const std::vector<std::vector<float>> &points, KdTree *tree,
       // create new cluster and start group with new point
       std::vector<int> cluster;
       groupNearestNeighbour(points, i, cluster, tree, processedPoints,
-                            distanceTol);
+                            distanceTol, maxAxis);
 
       clusters.push_back(cluster);
     }
@@ -138,13 +138,13 @@ int main() {
   KdTree *tree = new KdTree;
 
   for (int i = 0; i < points.size(); i++)
-    tree->insert(points[i], i);
+    tree->insert(points[i], i, 2);
 
   int it = 0;
   render2DTree(tree->root, viewer, window, it);
 
   std::cout << "Test Search" << std::endl;
-  std::vector<int> nearby = tree->search({-6, 7}, 3.0);
+  std::vector<int> nearby = tree->search({-6, 7}, 3.0, 2);
   for (int index : nearby)
     std::cout << index << ",";
   std::cout << std::endl;
@@ -152,7 +152,8 @@ int main() {
   // Time segmentation process
   auto startTime = std::chrono::steady_clock::now();
   //
-  std::vector<std::vector<int>> clusters = euclideanCluster(points, tree, 3.0);
+  std::vector<std::vector<int>> clusters =
+      euclideanCluster(points, tree, 3.0, 2);
   //
   auto endTime = std::chrono::steady_clock::now();
   auto elapsedTime =
